@@ -25,6 +25,10 @@ class Dialect(SphinxDialect, cymysql_dialect.MySQLDialect_cymysql):
         """Prevent 'SELECT DATABASE()' being executed"""
         return None
 
+    def _get_server_version_info(self, connection):
+        """Prevent 'SELECT VERSION()' being executed. Return empty tuple for compatibility"""
+        return tuple()
+
     def _detect_charset(self, connection):
         pass
 
