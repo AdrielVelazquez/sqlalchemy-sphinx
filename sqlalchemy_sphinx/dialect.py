@@ -9,6 +9,8 @@ from sqlalchemy.sql.functions import Function
 from sqlalchemy.types import MatchType
 from sqlalchemy import util
 
+from sqlalchemy_sphinx.utils import escape_special_chars
+
 __all__ = ("SphinxDialect")
 
 
@@ -82,7 +84,7 @@ class SphinxCompiler(compiler.SQLCompiler):
             for left, right in zip(self.left_match, self.right_match):
                 t = u"(@{0} {1})".format(
                     self.process(left),
-                    self.dialect.escape_value(right.value))
+                    escape_special_chars(self.dialect.escape_value(right.value)))
                 match_terms.append(t)
             self.left_match = tuple()
             self.right_match = tuple()
@@ -100,7 +102,7 @@ class SphinxCompiler(compiler.SQLCompiler):
                 else:
                     t = u"(@{0} {1})".format(
                         self.process(left),
-                        self.dialect.escape_value(right.value))
+                        escape_special_chars(self.dialect.escape_value(right.value)))
                 match_terms.append(t)
             self.left_match = tuple()
             self.right_match = tuple()
