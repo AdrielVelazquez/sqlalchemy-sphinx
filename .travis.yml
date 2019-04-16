@@ -2,17 +2,17 @@ language: python
 matrix:
   include:
     - python: "2.6"
-      env: TOX_ENV=py26-sqlalchemy{10,11,12,13}
+      env: TOX_ENV="py26-sqlalchemy{10,11,12,13}"
     - python: "2.7"
-      env: TOX_ENV=py27-sqlalchemy{10,11,12,13}
+      env: TOX_ENV="py27-sqlalchemy{10,11,12,13}"
     - python: "3.4"
-      env: TOX_ENV=py34-sqlalchemy{10,11,12,13}
+      env: TOX_ENV="py34-sqlalchemy{10,11,12,13}"
     - python: "3.5"
-      env: TOX_ENV=py35-sqlalchemy{10,11,12,13}
+      env: TOX_ENV="py35-sqlalchemy{10,11,12,13}"
     - python: "3.6"
-      env: TOX_ENV=py36-sqlalchemy{10,11,12,13}
-    - python: "3.6"
-      env: TOX_ENV=py37-sqlalchemy{10,11,12,13}
+      env: TOX_ENV="py36-sqlalchemy{10,11,12,13}"
+    - python: "3.7"
+      env: TOX_ENV="py37-sqlalchemy{10,11,12,13}"
 install:
   - pip install tox
   - pip install coveralls
