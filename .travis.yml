@@ -2,7 +2,8 @@ language: python
 matrix:
   include:
     - python: "2.6"
-      env: TOX_ENV="py26-sqlalchemy{10,11,12,13}"
+      env: TOX_ENV="py26-sqlalchemy{10,11}"
+      before_install: pip install "idna<2.8"
     - python: "2.7"
       env: TOX_ENV="py27-sqlalchemy{10,11,12,13}"
     - python: "3.4"
