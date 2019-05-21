@@ -222,17 +222,44 @@ def test_select_sanity(sphinx_connections):
     assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@name adriel)') ORDER BY country"
 
 
+def test_count(sphinx_connections):
+    MockSphinxModel, session, sphinx_engine = sphinx_connections
+
+    query = session.query(func.count(MockSphinxModel.id))
+    sql_text = query.statement.compile(sphinx_engine).string
+    assert sql_text == 'SELECT COUNT(*) AS count_1 \nFROM mock_table'
+
+    query = session.query(func.count('*')).select_from(MockSphinxModel).filter(func.match("adriel"))
+    sql_text = query.statement.compile(sphinx_engine).string
+    assert sql_text == "SELECT COUNT(*) AS count_1 \nFROM mock_table \nWHERE MATCH('adriel')"
+
+
 def test_distinct_and_count(sphinx_connections):
     MockSphinxModel, session, sphinx_engine = sphinx_connections
-    query = session.query(func.count()).select_from(MockSphinxModel)
-    sql_text = query.statement.compile(sphinx_engine).string
-    assert sql_text == 'SELECT COUNT(*) AS count_1 \nFROM mock_table'
 
-    MockSphinxModel, session, sphinx_engine = sphinx_connections
-    query = session.query(func.count('*')).select_from(MockSphinxModel)
+    query = session.query(func.count(distinct(MockSphinxModel.id)))
     sql_text = query.statement.compile(sphinx_engine).string
-    assert sql_text == 'SELECT COUNT(*) AS count_1 \nFROM mock_table'
+    assert sql_text == 'SELECT COUNT(DISTINCT id) AS count_1 \nFROM mock_table'
+    query = query.group_by(MockSphinxModel.group_by_dummy)
+    sql_text = query.statement.compile(sphinx_engine).string
+    assert sql_text == 'SELECT COUNT(DISTINCT id) AS count_1 \nFROM mock_table GROUP BY group_by_dummy'
 
+    query = session.query(func.count(distinct(MockSphinxModel.id)), MockSphinxModel.id)
+    sql_text = query.statement.compile(sphinx_engine).string
+    assert sql_text == 'SELECT COUNT(DISTINCT id) AS count_1, id \nFROM mock_table'
+    query = query.group_by(MockSphinxModel.group_by_dummy)
+    sql_text = query.statement.compile(sphinx_engine).string
+    assert sql_text == 'SELECT COUNT(DISTINCT id) AS count_1, id \nFROM mock_table GROUP BY group_by_dummy'
+
+    query = session.query(func.count(distinct(MockSphinxModel.id)), MockSphinxModel.id, func.sum(MockSphinxModel.id))
+    st = query.statement.compile(sphinx_engine).string
+    assert st == 'SELECT COUNT(DISTINCT id) AS count_1, id, sum(id) AS sum_1 \nFROM mock_table'
+    query = query.group_by(MockSphinxModel.group_by_dummy)
+    st = query.statement.compile(sphinx_engine).string
+    assert st == 'SELECT COUNT(DISTINCT id) AS count_1, id, sum(id) AS sum_1 \nFROM mock_table GROUP BY group_by_dummy'
+
+
+def test_result_maps_configurations(sphinx_connections):
     MockSphinxModel, session, sphinx_engine = sphinx_connections
     query = session.query(func.count('*')).select_from(MockSphinxModel).filter(func.match("adriel"))
     sql_text = query.statement.compile(sphinx_engine).string

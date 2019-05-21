@@ -18,27 +18,25 @@ class SphinxCompiler(compiler.SQLCompiler):
 
     def visit_count_func(self, fn, *args, **_kw):
         "sphinxQL does not support other forms of count"
+        if 'DISTINCT' in str(fn.clause_expr):
+            return 'COUNT{0}'.format(self.process(fn.clause_expr, **_kw))
         return 'COUNT(*)'
 
     def visit_options_func(self, fn, *args, **_kw):
         """
-        OPTION clause. This is a Sphinx specific extension that lets you
-        control a number of per-query options.
+        OPTION clause. This is a Sphinx specific extension that lets you control a number of per-query options.
 
         The syntax is:
         OPTION <optionname>=<value> [ , ... ]
         Supported options and respectively allowed values are:
-        'ranker' - any of 'proximity_bm25', 'bm25', 'none', 'wordcount',
-            'proximity', 'matchany', or 'fieldmask'
+        'ranker' - any of 'proximity_bm25', 'bm25', 'none', 'wordcount', 'proximity', 'matchany', or 'fieldmask'
         'max_matches' - integer (per-query max matches value)
         'cutoff' - integer (max found matches threshold)
         'max_query_time' - integer (max search time threshold, msec)
         'retry_count' - integer (distributed retries count)
         'retry_delay' - integer (distributed retry delay, msec)
-        'field_weights' - a named integer list
-            (per-field user weights for ranking)
-        'index_weights' - a named integer list
-            (per-index user weights for ranking)
+        'field_weights' - a named integer list (per-field user weights for ranking)
+        'index_weights' - a named integer list (per-index user weights for ranking)
 
         Example:
         SELECT * FROM test WHERE MATCH('@title hello @body world')
@@ -48,8 +46,7 @@ class SphinxCompiler(compiler.SQLCompiler):
         for clause in fn.clauses.clauses:
             if clause.left.name in ["field_weights", "index_weights"]:
                 option = "{0}=({1})"
-                option = option.format(
-                    clause.left.name, ", ".join(clause.right.value))
+                option = option.format(clause.left.name, ", ".join(clause.right.value))
                 options_list.append(option)
             else:
                 option = "{0}={1}"
@@ -68,8 +65,7 @@ class SphinxCompiler(compiler.SQLCompiler):
                 self.process(sql.literal(select._limit)))
         return text
 
-    def visit_column(
-            self, column, result_map=None, include_table=True, **kwargs):
+    def visit_column(self, column, result_map=None, include_table=True, **kwargs):
         name = column.name
         is_literal = column.is_literal
         if is_literal:
@@ -107,6 +103,9 @@ class SphinxCompiler(compiler.SQLCompiler):
             self.left_match = tuple()
             self.right_match = tuple()
             return u"MATCH('{0}')".format(u" ".join(match_terms))
+
+    def visit_distinct_func(self, func, **kw):
+        return "DISTINCT {0}".format(self.process(func.clauses.clauses[0]))
 
     def visit_select(self, select,
                      asfrom=False, parens=True, iswrapper=False,
@@ -206,8 +205,7 @@ class SphinxCompiler(compiler.SQLCompiler):
 
         if hasattr(self, "options_list"):
             if self.options_list:
-                option_text = " OPTION {0}".format(
-                    ", ".join(self.options_list))
+                option_text = " OPTION {0}".format(", ".join(self.options_list))
                 text += option_text
 
         self.stack.pop(-1)
