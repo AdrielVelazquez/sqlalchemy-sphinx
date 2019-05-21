@@ -15,6 +15,6 @@ test: update clean-pycs clean-cache
 test-docker-27:
 	pip install tox && tox -e py27
 
-test-docker-35:
-	pip install tox && tox -e py35
+test-docker-37:
+	pip install tox && tox -e py37
 
