@@ -18,8 +18,6 @@ model into compatible sql for sphinx.
 This dialect works for both python 2 and 3. Currently you need to import
 sqlalchemy\_sphinx to properly register for python 3.
 
-This fork adds support for Python 2.6
-
 Installation
 ------------
 
