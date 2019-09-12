@@ -3,6 +3,7 @@ import pytest
 
 from sqlalchemy import create_engine, Column, Integer, String, func, distinct
 from sqlalchemy.orm import sessionmaker, deferred
+from sqlalchemy.exc import CompileError
 from sqlalchemy.ext.declarative import declarative_base
 
 
@@ -168,6 +169,17 @@ def test_match(sphinx_connections):
     query = query.filter(func.random(MockSphinxModel.name))
     sql_text = query.statement.compile(sphinx_engine).string
     assert sql_text == "SELECT id \nFROM mock_table \nWHERE random(name)"
+
+
+def test_match_errors(sphinx_connections):
+    MockSphinxModel, session, sphinx_engine = sphinx_connections
+    query = session.query(MockSphinxModel.id)
+
+    with pytest.raises(CompileError):
+        query.filter(func.match(MockSphinxModel.name, "word1", "word2")).statement.compile(sphinx_engine)
+
+    with pytest.raises(CompileError):
+        query.filter(func.match()).statement.compile(sphinx_engine)
 
 
 def test_visit_column(sphinx_connections):

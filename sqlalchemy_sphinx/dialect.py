@@ -1,6 +1,7 @@
 """ Dialect implementaiton for SphinxQL based on MySQLdb-Python protocol"""
 
 from sqlalchemy.engine import default
+from sqlalchemy.exc import CompileError
 from sqlalchemy.sql import compiler
 from sqlalchemy.sql.elements import ClauseList
 from sqlalchemy.sql import expression as sql
@@ -161,9 +162,12 @@ class SphinxCompiler(compiler.SQLCompiler):
                 if clause.name.lower() == "match":
                     if len(clause.clauses) == 2:
                         func_left, func_right = clause.clauses
-                    else:
+                    elif len(clause.clauses) == 1:
                         func_left = None
                         func_right, = clause.clauses
+                    else:
+                        raise CompileError("Invalid arguments count for MATCH clause")
+
                     left_tuple.append(func_left)
                     right_tuple.append(func_right)
             elif isinstance(clause, ClauseList):
