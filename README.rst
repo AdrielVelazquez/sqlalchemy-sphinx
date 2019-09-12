@@ -1,4 +1,4 @@
-SQLAlchemy Sphinx 
+SQLAlchemy Sphinx
 =================
 
 |travis| |pypi| |coveralls|

@@ -1,6 +1,7 @@
 """ Dialect implementaiton for SphinxQL based on MySQLdb-Python protocol"""
 
 from sqlalchemy.engine import default
+from sqlalchemy.exc import CompileError
 from sqlalchemy.sql import compiler
 from sqlalchemy.sql.elements import ClauseList
 from sqlalchemy.sql import expression as sql
@@ -9,10 +10,18 @@ from sqlalchemy.sql.functions import Function
 from sqlalchemy.types import MatchType
 from sqlalchemy import util
 
+from sqlalchemy_sphinx.utils import escape_special_chars
+
 __all__ = ("SphinxDialect")
 
 
 class SphinxCompiler(compiler.SQLCompiler):
+
+    def visit_count_func(self, fn, *args, **_kw):
+        "sphinxQL does not support other forms of count"
+        if 'DISTINCT' in str(fn.clause_expr):
+            return 'COUNT{0}'.format(self.process(fn.clause_expr, **_kw))
+        return 'COUNT(*)'
 
     def visit_options_func(self, fn, *args, **_kw):
         """
@@ -37,11 +46,11 @@ class SphinxCompiler(compiler.SQLCompiler):
         options_list = []
         for clause in fn.clauses.clauses:
             if clause.left.name in ["field_weights", "index_weights"]:
-                option = "{}=({})"
+                option = "{0}=({1})"
                 option = option.format(clause.left.name, ", ".join(clause.right.value))
                 options_list.append(option)
             else:
-                option = "{}={}"
+                option = "{0}={1}"
                 option = option.format(clause.left.name, clause.right.value)
                 options_list.append(option)
         self.options_list = options_list
@@ -50,7 +59,7 @@ class SphinxCompiler(compiler.SQLCompiler):
     def limit_clause(self, select, **kw):
         text = ""
         if select._limit is not None and select._offset is None:
-            text += "\n LIMIT 0, {}".format(select._limit)
+            text += "\n LIMIT 0, {0}".format(select._limit)
         else:
             text += "\n LIMIT %s, %s" % (
                 self.process(sql.literal(select._offset)),
@@ -70,11 +79,13 @@ class SphinxCompiler(compiler.SQLCompiler):
         if self.left_match and self.right_match:
             match_terms = []
             for left, right in zip(self.left_match, self.right_match):
-                t = "(@{} {})".format(self.process(left), right.value)
+                t = u"(@{0} {1})".format(
+                    self.process(left),
+                    escape_special_chars(self.dialect.escape_value(right.value)))
                 match_terms.append(t)
             self.left_match = tuple()
             self.right_match = tuple()
-            return "MATCH('{}')".format(" ".join(match_terms))
+            return u"MATCH('{0}')".format(u" ".join(match_terms))
 
     def visit_match_func(self, fn, **kw):
         '''
@@ -83,14 +94,19 @@ class SphinxCompiler(compiler.SQLCompiler):
         if self.left_match and self.right_match:
             match_terms = []
             for left, right in zip(self.left_match, self.right_match):
-                t = "(@{} {})".format(self.process(left), right.value)
+                if left is None:
+                    t = u"{0}".format(self.dialect.escape_value(right.value))
+                else:
+                    t = u"(@{0} {1})".format(
+                        self.process(left),
+                        escape_special_chars(self.dialect.escape_value(right.value)))
                 match_terms.append(t)
             self.left_match = tuple()
             self.right_match = tuple()
-            return "MATCH('{}')".format(" ".join(match_terms))
+            return u"MATCH('{0}')".format(u" ".join(match_terms))
 
     def visit_distinct_func(self, func, **kw):
-        return "DISTINCT {}".format(self.process(func.clauses.clauses[0]))
+        return "DISTINCT {0}".format(self.process(func.clauses.clauses[0]))
 
     def visit_select(self, select,
                      asfrom=False, parens=True, iswrapper=False,
@@ -115,30 +131,9 @@ class SphinxCompiler(compiler.SQLCompiler):
         # the actual list of columns to print in the SELECT column list.
 
         unique_co = []
-        distinct_alias = None
         for co in util.unique_list(select.inner_columns):
             sql_util = self._label_select_column(select, co, True, asfrom, {})
-            if "DISTINCT" in sql_util:
-                distinct_alias = sql_util.split(" AS ")[-1]
             unique_co.append(sql_util)
-        result_columns = []
-        if distinct_alias:
-            for idx, rc_tuple in enumerate(self._result_columns):
-                if rc_tuple[0] == distinct_alias:
-                    if rc_tuple[-2][-1] == distinct_alias:
-                        target_name = "@distinct"
-                        temp_rc = list(rc_tuple)
-                        temp_rc[0] = target_name
-                        inner_tuple = list(temp_rc[-2])
-                        inner_tuple[-1] = target_name
-                        if not select._group_by_clause.clauses:
-                            raise AssertionError("Can't query distinct if no group by  is selected")
-                        temp_rc[-2] = tuple(inner_tuple)
-                        result_columns.append(tuple(temp_rc))
-                else:
-                    result_columns.append(rc_tuple)
-        if result_columns:
-            self._result_columns = result_columns
 
         inner_columns = [
             c for c in unique_co
@@ -165,7 +160,14 @@ class SphinxCompiler(compiler.SQLCompiler):
                 match_operators.append(clause.operator)
             elif isinstance(clause, Function):
                 if clause.name.lower() == "match":
-                    func_left, func_right = clause.clauses
+                    if len(clause.clauses) == 2:
+                        func_left, func_right = clause.clauses
+                    elif len(clause.clauses) == 1:
+                        func_left = None
+                        func_right, = clause.clauses
+                    else:
+                        raise CompileError("Invalid arguments count for MATCH clause")
+
                     left_tuple.append(func_left)
                     right_tuple.append(func_right)
             elif isinstance(clause, ClauseList):
@@ -195,11 +197,6 @@ class SphinxCompiler(compiler.SQLCompiler):
             if t:
                 text += " \nWHERE " + t
 
-            if hasattr(self, "options_list"):
-                if self.options_list:
-                    option_text = " OPTION {}".format(", ".join(self.options_list))
-                    text += option_text
-
         if select._group_by_clause.clauses:
             group_by = select._group_by_clause._compiler_dispatch(
                 self, **kwargs)
@@ -209,6 +206,11 @@ class SphinxCompiler(compiler.SQLCompiler):
             text += self.order_by_clause(select, **kwargs)
         if select._limit is not None:
             text += self.limit_clause(select)
+
+        if hasattr(self, "options_list"):
+            if self.options_list:
+                option_text = " OPTION {0}".format(", ".join(self.options_list))
+                text += option_text
 
         self.stack.pop(-1)
         return text
@@ -222,6 +224,10 @@ class SphinxDialect(default.DefaultDialect):
     # TODO HACK : Prevent SQLalchemy to send the request
     # 'SELECT 'X' as some_label;' as it is not supported by Sphinx
     description_encoding = None
+
+    def _get_default_schema_name(self, connection):
+        """Prevent 'SELECT DATABASE()' being executed"""
+        return None
 
     def _check_unicode_returns(self, connection):
         return True

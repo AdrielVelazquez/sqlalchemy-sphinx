@@ -22,7 +22,12 @@ class DBAPIShim(object):
 class Dialect(SphinxDialect, cymysql_dialect.MySQLDialect_cymysql):
 
     def _get_default_schema_name(self, connection):
-        pass
+        """Prevent 'SELECT DATABASE()' being executed"""
+        return None
+
+    def _get_server_version_info(self, connection):
+        """Prevent 'SELECT VERSION()' being executed. Return empty tuple for compatibility"""
+        return tuple()
 
     def _detect_charset(self, connection):
         pass
@@ -38,6 +43,9 @@ class Dialect(SphinxDialect, cymysql_dialect.MySQLDialect_cymysql):
 
     def get_isolation_level(self, connection):
         pass
+
+    def escape_value(self, value):
+        return cymysql.escape_string(value)
 
     @classmethod
     def dbapi(cls):

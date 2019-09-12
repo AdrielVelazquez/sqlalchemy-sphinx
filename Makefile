@@ -13,8 +13,8 @@ test: update clean-pycs clean-cache
 	source env/bin/activate && tox
 
 test-docker-27:
-	pip install tox && tox -e py27
+	pip install tox && tox -e "py27-sqlalchemy{10,11,12,13}"
 
 test-docker-36:
-	pip install tox && tox -e py36
+	pip install tox && tox -e "py36-sqlalchemy{10,11,12,13}"
 

@@ -34,7 +34,8 @@ setup(
     cmdclass = {'test': Tox},
     zip_safe=False,
     install_requires=[
-        "sqlalchemy > 0.9",
+        "sqlalchemy>0.9; python_version == '2.7' or python_version >= '3.4'",
+        "sqlalchemy>0.9,<1.2; python_version < '2.7'"
     ],
     tests_require=['tox'],
     entry_points={

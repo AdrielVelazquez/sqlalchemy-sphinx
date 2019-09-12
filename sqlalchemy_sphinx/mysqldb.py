@@ -21,7 +21,12 @@ class DBAPIShim(object):
 class Dialect(SphinxDialect, mysqldb_dialect.MySQLDialect_mysqldb):
 
     def _get_default_schema_name(self, connection):
-        pass
+        """Prevent 'SELECT DATABASE()' being executed"""
+        return None
+
+    def _get_server_version_info(self, connection):
+        """Prevent 'SELECT VERSION()' being executed. Return empty tuple for compatibility"""
+        return tuple()
 
     def _detect_charset(self, connection):
         pass
@@ -37,6 +42,10 @@ class Dialect(SphinxDialect, mysqldb_dialect.MySQLDialect_mysqldb):
 
     def get_isolation_level(self, connection):
         pass
+
+    def escape_value(self, value):
+        value = MySQLdb.escape_string(value.encode('utf8'))
+        return value.decode('utf8')
 
     @classmethod
     def dbapi(cls):
