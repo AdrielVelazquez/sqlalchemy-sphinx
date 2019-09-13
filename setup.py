@@ -42,7 +42,8 @@ setup(
      'sqlalchemy.dialects': [
           'sphinx = sqlalchemy_sphinx.mysqldb:Dialect',
           'sphinx.cymysql = sqlalchemy_sphinx.cymysql:Dialect',
-          'sphinx.mysqldb = sqlalchemy_sphinx.mysqldb:Dialect'
+          'sphinx.mysqldb = sqlalchemy_sphinx.mysqldb:Dialect',
+          'sphinx.pymysql = sqlalchemy_sphinx.pymysql:Dialect'
           ]
     }
 )
