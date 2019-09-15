@@ -25,7 +25,7 @@ class Tox(TestCommand):
 
 setup(
     name="sqlalchemy_sphinx",
-    version="0.8.3",
+    version="0.9.0",
     description="SQLAlchemy extension for dealing with SphinxQL",
     long_description=open("README.rst", "r").read(),
     author="Adriel Velazquez",
