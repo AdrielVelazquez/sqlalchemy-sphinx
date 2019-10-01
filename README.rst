@@ -81,7 +81,7 @@ We can also do matching
     query = base_query.filter(or_(MockSphinxModel.name, MockSphinxModel.country).match("US"))
     # "SELECT id FROM mock_table WHERE MATCH('(@(name,country) US)')"
 
-    query = base_query.filter(not_(or_(MockSphinxModel.name, MockSphinxModel.country).match("US")))
+    query = base_query.filter(not_(or_(MockSphinxModel.name, MockSphinxModel.country)).match("US"))
     # "SELECT id FROM mock_table WHERE MATCH('(@!(name,country) US)')"
 
 Options:
