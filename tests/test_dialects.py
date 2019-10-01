@@ -213,6 +213,7 @@ def test_match_errors(sphinx_connections):
         query.filter(or_(or_(MockSphinxModel.name, MockSphinxModel.country), MockSphinxModel.name).match("US")).\
             statement.compile(sphinx_engine)
 
+    # invalid unary
     with pytest.raises(CompileError, match='Invalid unary'):
         query.filter(MockSphinxModel.name.asc().match("US")).\
             statement.compile(sphinx_engine)
@@ -225,16 +226,6 @@ def test_match_errors(sphinx_connections):
     with pytest.raises(CompileError, match='Invalid boolean'):
         query.filter(not_(and_(MockSphinxModel.name, MockSphinxModel.country)).match("US")).\
             statement.compile(sphinx_engine)
-
-    for base_expression in (
-            not_(and_(MockSphinxModel.name, MockSphinxModel.country)),  # and_ inside not_
-            and_(MockSphinxModel.name, MockSphinxModel.country),  # and_
-            or_(not_(MockSphinxModel.name), MockSphinxModel.country),  # not_ inside or_
-            or_(or_(MockSphinxModel.name, MockSphinxModel.country), MockSphinxModel.name)  # multi level or
-    ):
-        for expression in (func.match(base_expression, "US"), base_expression.match("US")):
-            with pytest.raises(CompileError):
-                query.filter(expression).statement.compile(sphinx_engine)
 
 
 def test_visit_column(sphinx_connections):
