@@ -1,9 +1,11 @@
 """ Dialect implementaiton for SphinxQL based on MySQLdb-Python protocol"""
 
+import operator
+
 from sqlalchemy.engine import default
 from sqlalchemy.exc import CompileError
 from sqlalchemy.sql import compiler
-from sqlalchemy.sql.elements import ClauseList
+from sqlalchemy.sql.elements import ClauseList, UnaryExpression, BooleanClauseList, Grouping, ColumnClause
 from sqlalchemy.sql import expression as sql
 from sqlalchemy.sql.functions import Function
 
@@ -75,12 +77,49 @@ class SphinxCompiler(compiler.SQLCompiler):
             name = self.preparer.quote(name)
         return name
 
+    def _process_match(self, expr):
+        def ensure_column(clause):
+            if not isinstance(clause, ColumnClause):
+                raise CompileError("Invalid source for MATCH clause.")
+
+        negative = False
+
+        # unpack MATCH clause
+        if isinstance(expr, Grouping):
+            expr = expr.element
+        if isinstance(expr, UnaryExpression):
+            if expr.operator not in (operator.inv, operator.not_):
+                raise CompileError("Invalid unary operator for MATCH clause. "
+                                   "MATCH clause only supports NOT operator.")
+            negative = True
+            expr = expr.element
+        if isinstance(expr, Grouping):
+            expr = expr.element
+        if isinstance(expr, BooleanClauseList):
+            if expr.operator is not operator.or_:
+                raise CompileError("Invalid boolean operator for MATCH clause. "
+                                   "MATCH clause only supports OR operator.")
+            expr = expr.clauses
+
+        if isinstance(expr, (list, tuple)):
+            for expr_column in expr:
+                ensure_column(expr_column)
+            columns = u"({0})".format(','.join(map(self.process, expr)))
+        else:
+            ensure_column(expr)
+            columns = self.process(expr)
+
+        if negative:
+            columns = u"!{0}".format(columns)
+
+        return columns
+
     def visit_match_op_binary(self, binary, operator, **kw):
         if self.left_match and self.right_match:
             match_terms = []
             for left, right in zip(self.left_match, self.right_match):
                 t = u"(@{0} {1})".format(
-                    self.process(left),
+                    self._process_match(left),
                     escape_special_chars(self.dialect.escape_value(right.value)))
                 match_terms.append(t)
             self.left_match = tuple()
@@ -98,7 +137,7 @@ class SphinxCompiler(compiler.SQLCompiler):
                     t = u"{0}".format(self.dialect.escape_value(right.value))
                 else:
                     t = u"(@{0} {1})".format(
-                        self.process(left),
+                        self._process_match(left),
                         escape_special_chars(self.dialect.escape_value(right.value)))
                 match_terms.append(t)
             self.left_match = tuple()

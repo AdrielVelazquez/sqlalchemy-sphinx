@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 
-from sqlalchemy import create_engine, Column, Integer, String, func, distinct
+from sqlalchemy import create_engine, Column, Integer, String, func, distinct, or_, not_, and_
 from sqlalchemy.orm import sessionmaker, deferred
 from sqlalchemy.exc import CompileError
 from sqlalchemy.ext.declarative import declarative_base
@@ -37,6 +37,7 @@ def test_limit_and_offset(sphinx_connections):
 
 def test_match(sphinx_connections):
     MockSphinxModel, session, sphinx_engine = sphinx_connections
+    base_query = session.query(MockSphinxModel.id)
 
     # One Match
     query = session.query(MockSphinxModel.id)
@@ -145,6 +146,27 @@ def test_match(sphinx_connections):
     sql_text = query.statement.compile(sphinx_engine).string
     assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@name adriel) (@country US)')"
 
+    # Matching with not_
+    base_expression = not_(MockSphinxModel.country)
+    for expression in (base_expression.match("US"), func.match(base_expression, "US")):
+        query = base_query.filter(expression)
+        sql_text = query.statement.compile(sphinx_engine).string
+        assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@!country US)')"
+
+    # Matching multiple columns with or_
+    base_expression = or_(MockSphinxModel.name, MockSphinxModel.country)
+    for expression in (base_expression.match("US"), func.match(base_expression, "US")):
+        query = base_query.filter(expression)
+        sql_text = query.statement.compile(sphinx_engine).string
+        assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@(name,country) US)')"
+
+    # Matching multiple columns with or_ and not_ through functions
+    base_expression = not_(or_(MockSphinxModel.name, MockSphinxModel.country))
+    for expression in (base_expression.match("US"), func.match(base_expression, "US")):
+        query = base_query.filter(expression)
+        sql_text = query.statement.compile(sphinx_engine).string
+        assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@!(name,country) US)')"
+
     # Mixing and Matching
     query = session.query(MockSphinxModel.id)
     query = query.filter(func.match(MockSphinxModel.name, "adriel"), MockSphinxModel.country.match("US"))
@@ -180,6 +202,39 @@ def test_match_errors(sphinx_connections):
 
     with pytest.raises(CompileError):
         query.filter(func.match()).statement.compile(sphinx_engine)
+
+    # not_ inside or_
+    with pytest.raises(CompileError, match='Invalid source'):
+        query.filter(or_(not_(MockSphinxModel.name), MockSphinxModel.country).match("US")).\
+            statement.compile(sphinx_engine)
+
+    # multi level or
+    with pytest.raises(CompileError, match='Invalid source'):
+        query.filter(or_(or_(MockSphinxModel.name, MockSphinxModel.country), MockSphinxModel.name).match("US")).\
+            statement.compile(sphinx_engine)
+
+    with pytest.raises(CompileError, match='Invalid unary'):
+        query.filter(MockSphinxModel.name.asc().match("US")).\
+            statement.compile(sphinx_engine)
+
+    # and_
+    with pytest.raises(CompileError, match='Invalid boolean'):
+        query.filter(and_(MockSphinxModel.name, MockSphinxModel.country).match("US")).statement.compile(sphinx_engine)
+
+    # and_ inside not_
+    with pytest.raises(CompileError, match='Invalid boolean'):
+        query.filter(not_(and_(MockSphinxModel.name, MockSphinxModel.country)).match("US")).\
+            statement.compile(sphinx_engine)
+
+    for base_expression in (
+            not_(and_(MockSphinxModel.name, MockSphinxModel.country)),  # and_ inside not_
+            and_(MockSphinxModel.name, MockSphinxModel.country),  # and_
+            or_(not_(MockSphinxModel.name), MockSphinxModel.country),  # not_ inside or_
+            or_(or_(MockSphinxModel.name, MockSphinxModel.country), MockSphinxModel.name)  # multi level or
+    ):
+        for expression in (func.match(base_expression, "US"), base_expression.match("US")):
+            with pytest.raises(CompileError):
+                query.filter(expression).statement.compile(sphinx_engine)
 
 
 def test_visit_column(sphinx_connections):
