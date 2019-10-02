@@ -37,7 +37,7 @@ sqlalchemy model.
 .. code:: python
 
 
-    from sqlalchemy import create_engine, Column, Integer, String, BigInteger, Unicode, Enum
+    from sqlalchemy import create_engine, Column, Integer, String, BigInteger, Unicode, Enum, or_, not_
     from sqlalchemy.ext.declarative import declarative_base
     from sqlalchemy.orm import deferred, sessionmaker
 
@@ -74,6 +74,15 @@ We can also do matching
 
     query = base_query.filter(MockSphinxModel.name.match("adriel"), MockSphinxModel.country.match("US"))
     # "SELECT id FROM mock_table WHERE MATCH('(@name adriel) (@country US)')"
+
+    query = base_query.filter(not_(MockSphinxModel.name).match("US"))
+    # "SELECT id FROM mock_table WHERE MATCH('(@!name US)')"
+
+    query = base_query.filter(or_(MockSphinxModel.name, MockSphinxModel.country).match("US"))
+    # "SELECT id FROM mock_table WHERE MATCH('(@(name,country) US)')"
+
+    query = base_query.filter(not_(or_(MockSphinxModel.name, MockSphinxModel.country)).match("US"))
+    # "SELECT id FROM mock_table WHERE MATCH('(@!(name,country) US)')"
 
 Options:
 
