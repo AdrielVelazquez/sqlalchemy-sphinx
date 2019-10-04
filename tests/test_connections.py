@@ -3,7 +3,7 @@ import pytest
 from sqlalchemy import create_engine
 
 from sqlalchemy_sphinx.dialect import SphinxDialect
-from sqlalchemy_sphinx.cymysql import Dialect
+from sqlalchemy_sphinx.cymysql import Dialect as cymysqlDialect
 from sqlalchemy_sphinx.mysqldb import Dialect as mysqldbDialect
 from sqlalchemy_sphinx.pymysql import Dialect as pymysqlDialect
 
@@ -18,7 +18,7 @@ def connection_url(request):
 @pytest.fixture(scope="module")
 def dialect_class(connection_url):
     if "cymysql" in connection_url:
-        return Dialect
+        return cymysqlDialect
     elif "mysqldb" in connection_url:
         return mysqldbDialect
     elif "pymysql" in connection_url:

@@ -97,6 +97,11 @@ class TestMatch:
         sql_text = query.statement.compile(sphinx_engine).string
         assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@name adri\\'el)')"
 
+    def test_escape_percent(self, sphinx_engine, base_query, match_model_name):
+        query = base_query.filter(match_model_name("adri%el"))
+        sql_text = query.statement.compile(sphinx_engine).string
+        assert sql_text == "SELECT id \nFROM mock_table \nWHERE MATCH('(@name adri%%el)')"
+
     def test_escape_at_symbol(self, sphinx_engine, base_query, match_model_name):
         query = base_query.filter(match_model_name("@username"))
         sql_text = query.statement.compile(sphinx_engine).string
