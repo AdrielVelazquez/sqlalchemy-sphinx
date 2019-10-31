@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import cymysql
 from cymysql.connections import Connection
+from cymysql.converters import ESCAPE_REGEX, ESCAPE_MAP
 from sqlalchemy.dialects.mysql import cymysql as cymysql_dialect
 from sqlalchemy_sphinx.dialect import SphinxDialect
 
@@ -45,7 +46,8 @@ class Dialect(SphinxDialect, cymysql_dialect.MySQLDialect_cymysql):
         pass
 
     def escape_value(self, value):
-        return cymysql.escape_string(value)
+        """cymysql.escape_string without quotes"""
+        return "%s" % ESCAPE_REGEX.sub(lambda match: ESCAPE_MAP.get(match.group(0)), value)
 
     @classmethod
     def dbapi(cls):
