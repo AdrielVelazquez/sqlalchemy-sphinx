@@ -15,7 +15,7 @@ from sqlalchemy.sql.elements import (
 from sqlalchemy.types import MatchType
 from sqlalchemy import util
 
-from sqlalchemy_sphinx.utils import escape_special_chars
+from sqlalchemy_sphinx.utils import escape_special_chars, escape_percent_char
 
 __all__ = ("SphinxDialect")
 
@@ -137,7 +137,7 @@ class SphinxCompiler(compiler.SQLCompiler):
             match_terms = []
             for left, right in zip(self.left_match, self.right_match):
                 if left is None:
-                    t = u"{0}".format(self.dialect.escape_value(right.value))
+                    t = u"{0}".format(escape_percent_char(self.dialect.escape_value(right.value)))
                 else:
                     t = u"(@{0} {1})".format(
                         self._process_match(left),
