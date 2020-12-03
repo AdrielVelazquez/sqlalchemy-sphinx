@@ -77,12 +77,12 @@ def match_model_country(MockSphinxModel, match_func):
 class TestLimitOffset:
     def test_limit(self, MockSphinxModel, sphinx_engine, session):
         query = session.query(MockSphinxModel).limit(100)
-        sql_text = query._compile_context().statement.compile(sphinx_engine).string
+        sql_text = query.statement.compile(sphinx_engine).string
         assert sql_text == "SELECT name, id, country \nFROM mock_table\n LIMIT 0, 100"
 
     def test_limit_and_offset(self, MockSphinxModel, sphinx_engine, session):
         query = session.query(MockSphinxModel).limit(100).offset(100)
-        sql_text = query._compile_context().statement.compile(sphinx_engine).string
+        sql_text = query.statement.compile(sphinx_engine).string
         assert sql_text == "SELECT name, id, country \nFROM mock_table\n LIMIT %s, %s"
 
 
