@@ -5,14 +5,17 @@ import operator
 from sqlalchemy.engine import default
 from sqlalchemy.exc import CompileError
 from sqlalchemy.sql import compiler
-from sqlalchemy.sql.elements import ClauseList, UnaryExpression, BooleanClauseList, Grouping, ColumnClause
 from sqlalchemy.sql import expression as sql
 from sqlalchemy.sql.functions import Function
+from sqlalchemy.sql.elements import (
+    ClauseList, UnaryExpression, BooleanClauseList, Grouping,
+    ColumnClause, BindParameter
+)
 
 from sqlalchemy.types import MatchType
 from sqlalchemy import util
 
-from sqlalchemy_sphinx.utils import escape_special_chars
+from sqlalchemy_sphinx.utils import escape_special_chars, escape_percent_char
 
 __all__ = ("SphinxDialect")
 
@@ -134,7 +137,7 @@ class SphinxCompiler(compiler.SQLCompiler):
             match_terms = []
             for left, right in zip(self.left_match, self.right_match):
                 if left is None:
-                    t = u"{0}".format(self.dialect.escape_value(right.value))
+                    t = u"{0}".format(escape_percent_char(self.dialect.escape_value(right.value)))
                 else:
                     t = u"(@{0} {1})".format(
                         self._process_match(left),
@@ -190,11 +193,16 @@ class SphinxCompiler(compiler.SQLCompiler):
                            for f in froms])
 
         def check_match_clause(clause):
+            def ensure_right_correct(expr):
+                if not isinstance(expr, (str, BindParameter)):
+                    raise CompileError("Invalid argument type for MATCH clause")
+
             left_tuple = []
             right_tuple = []
             match_operators = []
             if isinstance(clause.type, MatchType):
                 left_tuple.append(clause.left)
+                ensure_right_correct(clause.right)
                 right_tuple.append(clause.right)
                 match_operators.append(clause.operator)
             elif isinstance(clause, Function):
@@ -206,6 +214,8 @@ class SphinxCompiler(compiler.SQLCompiler):
                         func_right, = clause.clauses
                     else:
                         raise CompileError("Invalid arguments count for MATCH clause")
+
+                    ensure_right_correct(func_right)
 
                     left_tuple.append(func_left)
                     right_tuple.append(func_right)
